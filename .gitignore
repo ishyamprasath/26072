@@ -1,0 +1,15 @@
+node_modules
+.next
+data/raw
+data/cache
+data/cubes
+data/case
+data/corpus
+data/status.json
+data/grid.json
+data/model.json
+data/norm.json
+*.log
+tsconfig.tsbuildinfo
+.env
+.env.local

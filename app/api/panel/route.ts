@@ -8,10 +8,11 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const name = url.searchParams.get("name");
   const lead = Number(url.searchParams.get("lead"));
+  const caseId = url.searchParams.get("case") ?? undefined;
   if (name !== "obs" && name !== "model" && name !== "flow" && name !== "persist") {
     return new Response("Unknown panel", { status: 400 });
   }
-  const frames = await readLead(lead);
+  const frames = await readLead(lead, caseId);
   if (!frames) return new Response("Case not ready", { status: 404 });
   const png = renderPanel({
     name: name as PanelName,

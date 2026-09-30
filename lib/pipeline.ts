@@ -605,9 +605,10 @@ function emptyScore(): Record<MethodName, ScoreBlock> {
   return { model: blank(), persistence: blank(), optical_flow: blank() };
 }
 
-export async function readCaseMeta(): Promise<CaseMeta | null> {
+export async function readCaseMeta(caseId?: string): Promise<CaseMeta | null> {
   try {
-    return JSON.parse(await readFile(path.join(DATA, "case", "meta.json"), "utf8")) as CaseMeta;
+    const dir = caseId === "convective" ? path.join(DATA, "case", "convective") : path.join(DATA, "case");
+    return JSON.parse(await readFile(path.join(dir, "meta.json"), "utf8")) as CaseMeta;
   } catch {
     return null;
   }

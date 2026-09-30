@@ -318,7 +318,7 @@ APIs this build calls:
 | NVIDIA embeddings | `NVIDIA_API_KEY`, model `NVIDIA_MODEL_EMBED` | Local search of the guidance pages. Passage vectors when indexing, query vectors when asking |
 | Firecrawl scrape and search | `FIRECRAWL_API_KEY` | Public NDMA and IMD pages only |
 | Browser speech | none | English (`en-IN`) and Hindi (`hi-IN`), same commands as the buttons |
-| CARTO basemap | none | The map under the forecast panels |
+| OpenStreetMap basemap | none | The map under the forecast panels (open, free, no watermark) |
 
 Not used: `NVIDIA_MODEL_3D`, any xAI key, MOSDAC, IMD login, a map token, a packaged dataset.
 

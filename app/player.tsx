@@ -61,9 +61,9 @@ function ForecastMap({ title, accent, imageUrl, fitKey }: { title: string; accen
           sources: {
             base: {
               type: "raster",
-              tiles: ["https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"],
+              tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
               tileSize: 256,
-              attribution: "CARTO, OpenStreetMap",
+              attribution: "OpenStreetMap",
             },
           },
           layers: [{ id: "base", type: "raster", source: "base" }],
@@ -171,6 +171,8 @@ export function Player({
   const [origin, setOrigin] = useState("");
   const [synced, setSynced] = useState(mode !== "remote");
   const [slice, setSlice] = useState<SliceName>("all");
+  const [activeCase, setActiveCase] = useState<"convective" | "default">("convective");
+  const [scoreSource, setScoreSource] = useState<"test" | "demo">("test");
   const [listening, setListening] = useState(false);
   const [speechNote, setSpeechNote] = useState("");
   const [draft, setDraft] = useState("");
@@ -180,6 +182,15 @@ export function Player({
   const stamp = useRef(0);
   const chatId = useRef(1);
   viewRef.current = view;
+
+  useEffect(() => {
+    fetch(`/api/case${activeCase === "convective" ? "?case=convective" : ""}`)
+      .then((res) => res.json())
+      .then((body: { ready?: boolean; meta?: CaseMeta }) => {
+        if (body.ready && body.meta) setMeta(body.meta);
+      })
+      .catch(() => undefined);
+  }, [activeCase]);
 
   useEffect(() => {
     setView((current) => (current.language === language ? current : { ...current, language }));
@@ -358,21 +369,46 @@ export function Player({
   const areas = meta ? meta.grid.cells.map((cell) => cellAreaKm2(cell.south, cell.north, cell.west, cell.east)) : [];
   const district = DISTRICTS.find((item) => item.id === view.district);
   const fit = district ? [district.west, district.south, district.east, district.north].join(",") : DOMAIN_FIT.join(",");
-  const leadRow = meta?.scores.demo.model[slice].find((row) => row.lead === view.lead);
-  const flowRow = meta?.scores.demo.optical_flow[slice].find((row) => row.lead === view.lead);
-  const persistRow = meta?.scores.demo.persistence[slice].find((row) => row.lead === view.lead);
+  const caseParam = activeCase === "convective" ? "&case=convective" : "";
+  const activeScores = meta ? (meta.scores[scoreSource] ?? meta.scores.test) : null;
+  const leadRow = activeScores?.model[slice].find((row) => row.lead === view.lead);
+  const flowRow = activeScores?.optical_flow[slice].find((row) => row.lead === view.lead);
+  const persistRow = activeScores?.persistence[slice].find((row) => row.lead === view.lead);
   const districts = meta?.districtsByLead[String(view.lead)] ?? [];
   const remoteUrl = origin && roomId ? `${origin}/remote?room=${roomId}` : "";
 
   return (
     <>
       <section className="banner">
-        <strong>{meta ? `${meta.demoDate} ${meta.analysisHhmm} UTC` : text.emptyTitle}</strong>
-        <span>
-          {meta
-            ? `${meta.grid.rows} x ${meta.grid.cols} pixels, ${Math.round(Math.min(...areas))} to ${Math.round(Math.max(...areas))} km2. ${text.footprint} ${meta.label}`
-            : text.emptyBody}
-        </span>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <strong>{meta ? `${meta.demoDate} ${meta.analysisHhmm} UTC` : text.emptyTitle}</strong>
+            <span>
+              {meta
+                ? `${meta.grid.rows} x ${meta.grid.cols} pixels, ${Math.round(Math.min(...areas))} to ${Math.round(Math.max(...areas))} km2. ${text.footprint} ${meta.label}`
+                : text.emptyBody}
+            </span>
+          </div>
+          <div className="row">
+            <span style={{ fontSize: 13, color: "var(--muted)", fontWeight: 600 }}>Case:</span>
+            <button
+              type="button"
+              className={activeCase === "convective" ? "on" : ""}
+              onClick={() => setActiveCase("convective")}
+              title="Real convective squall line across Jharkhand and Bengal"
+            >
+              Convective Storm (2024-06-11)
+            </button>
+            <button
+              type="button"
+              className={activeCase === "default" ? "on" : ""}
+              onClick={() => setActiveCase("default")}
+              title="Quiet held-out case afternoon"
+            >
+              Held-out Case (2024-04-18)
+            </button>
+          </div>
+        </div>
         {status && !meta ? <span>{status}</span> : null}
       </section>
       {phone && !initialRoomId ? <p className="note">{text.noRoom}</p> : null}
@@ -416,12 +452,12 @@ export function Player({
       {view.layers.lightning ? <p className="note">{text.lightningNote}</p> : null}
       {meta ? (
         <div className="panels">
-          <ForecastMap title={text.observed} accent="#9f2d2d" imageUrl={`/api/panel?name=obs&lead=${view.lead}&ir=${view.layers.ir ? 1 : 0}`} fitKey={fit} />
-          <ForecastMap title={text.model} accent="#0f6e56" imageUrl={`/api/panel?name=model&lead=${view.lead}`} fitKey={fit} />
+          <ForecastMap title={text.observed} accent="#dc2626" imageUrl={`/api/panel?name=obs&lead=${view.lead}&ir=${view.layers.ir ? 1 : 0}${caseParam}`} fitKey={fit} />
+          <ForecastMap title={text.model} accent="#0f766e" imageUrl={`/api/panel?name=model&lead=${view.lead}${caseParam}`} fitKey={fit} />
           <ForecastMap
             title={view.compare === "persistence" ? text.persistence : text.flow}
-            accent={view.compare === "persistence" ? "#8a5a00" : "#1d4e89"}
-            imageUrl={`/api/panel?name=${view.compare === "persistence" ? "persist" : "flow"}&lead=${view.lead}`}
+            accent={view.compare === "persistence" ? "#b45309" : "#1d4ed8"}
+            imageUrl={`/api/panel?name=${view.compare === "persistence" ? "persist" : "flow"}&lead=${view.lead}${caseParam}`}
             fitKey={fit}
           />
         </div>
@@ -434,13 +470,31 @@ export function Player({
                 {name === "all" ? text.sliceAll : name === "initiation" ? text.sliceInit : text.sliceDecay}
               </button>
             ))}
+            <div className="row" style={{ marginLeft: "auto" }}>
+              <button
+                type="button"
+                className={scoreSource === "test" ? "on" : ""}
+                onClick={() => setScoreSource("test")}
+                title="Categorical evaluation on convective test afternoon"
+              >
+                Benchmark CSI (Test Set)
+              </button>
+              <button
+                type="button"
+                className={scoreSource === "demo" ? "on" : ""}
+                onClick={() => setScoreSource("demo")}
+                title="Categorical evaluation on demo case afternoon"
+              >
+                Case Verification (2024-04-18: n/a)
+              </button>
+            </div>
             <span className="muted">
-              {text.demoDay}. {text.threshold} {meta.threshold.toFixed(2)}. {text.model} CSI {leadRow ? formatScore(leadRow.csi, leadRow.hits, leadRow.misses, leadRow.falseAlarms) : "n/a"}. {text.flow}{" "}
-              {flowRow ? formatScore(flowRow.csi, flowRow.hits, flowRow.misses, flowRow.falseAlarms) : "n/a"}. {text.persistence}{" "}
-              {persistRow ? formatScore(persistRow.csi, persistRow.hits, persistRow.misses, persistRow.falseAlarms) : "n/a"}.
+              {scoreSource === "test" ? `${text.testDay} ${meta.testDate}` : `${text.demoDay} 2024-04-18`}. {text.threshold} {meta.threshold.toFixed(2)}. {text.model} CSI {leadRow && (leadRow.hits + leadRow.misses + leadRow.falseAlarms > 0) ? formatScore(leadRow.csi, leadRow.hits, leadRow.misses, leadRow.falseAlarms) : "n/a"}. {text.flow}{" "}
+              {flowRow && (flowRow.hits + flowRow.misses + flowRow.falseAlarms > 0) ? formatScore(flowRow.csi, flowRow.hits, flowRow.misses, flowRow.falseAlarms) : "n/a"}. {text.persistence}{" "}
+              {persistRow && (persistRow.hits + persistRow.misses + persistRow.falseAlarms > 0) ? formatScore(persistRow.csi, persistRow.hits, persistRow.misses, persistRow.falseAlarms) : "n/a"}.
             </span>
           </div>
-          <CsiChart scores={meta.scores.demo} slice={slice} />
+          {activeScores ? <CsiChart scores={activeScores} slice={slice} /> : null}
         </section>
       ) : null}
       <div className="layout">

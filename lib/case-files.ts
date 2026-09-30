@@ -26,18 +26,19 @@ function frameBytes(file: Buffer, index: number, cells: number): Uint8Array | nu
   return file.subarray(start, start + cells);
 }
 
-export async function readLead(lead: number): Promise<LeadFrames | null> {
-  const meta = await readCaseMeta();
+export async function readLead(lead: number, caseId?: string): Promise<LeadFrames | null> {
+  const dir = caseId === "convective" ? path.join(CASE_DIR, "convective") : CASE_DIR;
+  const meta = await readCaseMeta(caseId);
   if (!meta) return null;
   const index = (LEADS as readonly number[]).indexOf(lead);
   if (index < 0) return null;
   const cells = meta.grid.cells.length;
   const [modelFile, irFile, flowFile, persistFile, obsFile] = await Promise.all([
-    readFile(path.join(CASE_DIR, "model.f32")),
-    readFile(path.join(CASE_DIR, "ir.f32")),
-    readFile(path.join(CASE_DIR, "flow.u8")),
-    readFile(path.join(CASE_DIR, "persist.u8")),
-    readFile(path.join(CASE_DIR, "obs.u8")),
+    readFile(path.join(dir, "model.f32")),
+    readFile(path.join(dir, "ir.f32")),
+    readFile(path.join(dir, "flow.u8")),
+    readFile(path.join(dir, "persist.u8")),
+    readFile(path.join(dir, "obs.u8")),
   ]);
   const model = frameFloat(modelFile, index, cells);
   const ir = frameFloat(irFile, index, cells);

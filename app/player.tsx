@@ -36,7 +36,23 @@ function speak(text: string, language: Lang): void {
   window.speechSynthesis.speak(utterance);
 }
 
-function ForecastMap({ title, accent, imageUrl, fitKey }: { title: string; accent: string; imageUrl: string; fitKey: string }) {
+function ForecastMap({
+  title,
+  accent,
+  imageUrl,
+  fitKey,
+  headerClass,
+  tag,
+  tagClass,
+}: {
+  title: string;
+  accent: string;
+  imageUrl: string;
+  fitKey: string;
+  headerClass?: string;
+  tag?: string;
+  tagClass?: string;
+}) {
   const node = useRef<HTMLDivElement>(null);
   const mapRef = useRef<{
     remove: () => void;
@@ -121,12 +137,13 @@ function ForecastMap({ title, accent, imageUrl, fitKey }: { title: string; accen
   }, [fitKey]);
 
   return (
-    <section className="panel">
+    <section className={`panel ${headerClass ?? ""}`}>
       <header>
         <span>
           <i className="swatch" style={{ background: accent }} />
           {title}
         </span>
+        {tag ? <span className={`panel-tag ${tagClass ?? ""}`}>{tag}</span> : null}
       </header>
       <div ref={node} className="map" />
     </section>
@@ -380,7 +397,7 @@ export function Player({
   return (
     <>
       <section className="banner">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+        <div className="banner-top">
           <div>
             <strong>{meta ? `${meta.demoDate} ${meta.analysisHhmm} UTC` : text.emptyTitle}</strong>
             <span>
@@ -388,12 +405,19 @@ export function Player({
                 ? `${meta.grid.rows} x ${meta.grid.cols} pixels, ${Math.round(Math.min(...areas))} to ${Math.round(Math.max(...areas))} km2. ${text.footprint} ${meta.label}`
                 : text.emptyBody}
             </span>
+            <div className="badge-row">
+              <span className="badge badge-lead">⏱ Lead: +{view.lead} min</span>
+              <span className="badge badge-storm">⚡ Pre-monsoon Convection</span>
+              <span className="badge badge-grid">🌐 0.05° Fixed Grid</span>
+              <span className={`badge ${activeCase === "convective" ? "badge-convective" : "badge-quiet"}`}>
+                {activeCase === "convective" ? "Active Squall Case" : "Held-out Case"}
+              </span>
+            </div>
           </div>
-          <div className="row">
-            <span style={{ fontSize: 13, color: "var(--muted)", fontWeight: 600 }}>Case:</span>
+          <div className="case-btn-group">
             <button
               type="button"
-              className={activeCase === "convective" ? "on" : ""}
+              className={`case-btn ${activeCase === "convective" ? "active" : ""}`}
               onClick={() => setActiveCase("convective")}
               title="Real convective squall line across Jharkhand and Bengal"
             >
@@ -401,7 +425,7 @@ export function Player({
             </button>
             <button
               type="button"
-              className={activeCase === "default" ? "on" : ""}
+              className={`case-btn ${activeCase === "default" ? "active" : ""}`}
               onClick={() => setActiveCase("default")}
               title="Quiet held-out case afternoon"
             >
@@ -413,9 +437,10 @@ export function Player({
       </section>
       {phone && !initialRoomId ? <p className="note">{text.noRoom}</p> : null}
       {mode === "remote" && !synced ? <p className="note">{text.joining}</p> : null}
-      <div className="toolbar">
-        <label>
-          {text.lead} +{view.lead}
+      <div className="control-bar">
+        <div className="lead-control">
+          <span>{text.lead}</span>
+          <span className="lead-display">+{view.lead} min</span>
           <input
             type="range"
             min={10}
@@ -424,53 +449,102 @@ export function Player({
             value={view.lead}
             onChange={(event) => commit({ ...view, lead: Number(event.target.value) })}
           />
-        </label>
-        <button type="button" onClick={() => commit({ ...view, playing: !view.playing })} className={view.playing ? "on" : ""}>
-          {view.playing ? text.pause : text.play}
+        </div>
+        <button
+          type="button"
+          onClick={() => commit({ ...view, playing: !view.playing })}
+          className={view.playing ? "btn-pause" : "btn-play"}
+        >
+          {view.playing ? `⏸ ${text.pause}` : `▶ ${text.play}`}
         </button>
-        <button type="button" className={view.compare === "optical_flow" ? "on" : ""} onClick={() => commit({ ...view, compare: "optical_flow" })}>
+        <button
+          type="button"
+          className={`btn-flow ${view.compare === "optical_flow" ? "on" : ""}`}
+          onClick={() => commit({ ...view, compare: "optical_flow" })}
+        >
           {text.flow}
         </button>
-        <button type="button" className={view.compare === "persistence" ? "on" : ""} onClick={() => commit({ ...view, compare: "persistence" })}>
+        <button
+          type="button"
+          className={`btn-persist ${view.compare === "persistence" ? "on" : ""}`}
+          onClick={() => commit({ ...view, compare: "persistence" })}
+        >
           {text.persistence}
         </button>
-        <button type="button" className={view.layers.ir ? "on" : ""} onClick={() => commit({ ...view, layers: { ...view.layers, ir: !view.layers.ir } })}>
+        <button
+          type="button"
+          className={`btn-ir ${view.layers.ir ? "on" : ""}`}
+          onClick={() => commit({ ...view, layers: { ...view.layers, ir: !view.layers.ir } })}
+        >
           {text.infrared}
         </button>
-        <button type="button" className={view.layers.lightning ? "storm" : ""} onClick={() => commit({ ...view, layers: { ...view.layers, lightning: !view.layers.lightning } })}>
-          {text.lightning}
+        <button
+          type="button"
+          className={view.layers.lightning ? "storm" : ""}
+          onClick={() => commit({ ...view, layers: { ...view.layers, lightning: !view.layers.lightning } })}
+        >
+          ⚡ {text.lightning}
         </button>
-        <button type="button" className={view.language === "en" ? "on" : ""} onClick={() => commit({ ...view, language: "en" })}>
-          {text.english}
-        </button>
-        <button type="button" className={view.language === "hi" ? "on" : ""} onClick={() => commit({ ...view, language: "hi" })}>
-          {text.hindi}
-        </button>
-        <button type="button" onClick={listen}>{listening ? text.listening : text.listen}</button>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }}>
+          <button type="button" className={view.language === "en" ? "on" : ""} onClick={() => commit({ ...view, language: "en" })}>
+            {text.english}
+          </button>
+          <button type="button" className={view.language === "hi" ? "on" : ""} onClick={() => commit({ ...view, language: "hi" })}>
+            {text.hindi}
+          </button>
+          <button type="button" className="btn-mic" onClick={listen}>
+            {listening ? `🎙 ${text.listening}` : `🎙 ${text.listen}`}
+          </button>
+        </div>
       </div>
       {speechNote ? <p className="note">{speechNote}</p> : null}
       {view.layers.lightning ? <p className="note">{text.lightningNote}</p> : null}
       {meta ? (
         <div className="panels">
-          <ForecastMap title={text.observed} accent="#dc2626" imageUrl={`/api/panel?name=obs&lead=${view.lead}&ir=${view.layers.ir ? 1 : 0}${caseParam}`} fitKey={fit} />
-          <ForecastMap title={text.model} accent="#0f766e" imageUrl={`/api/panel?name=model&lead=${view.lead}${caseParam}`} fitKey={fit} />
+          <ForecastMap
+            title={text.observed}
+            accent="#dc2626"
+            headerClass="panel-header-obs"
+            tag="GROUND TRUTH"
+            tagClass="tag-obs"
+            imageUrl={`/api/panel?name=obs&lead=${view.lead}&ir=${view.layers.ir ? 1 : 0}${caseParam}`}
+            fitKey={fit}
+          />
+          <ForecastMap
+            title={text.model}
+            accent="#059669"
+            headerClass="panel-header-model"
+            tag="CONV-NOWCAST AI"
+            tagClass="tag-model"
+            imageUrl={`/api/panel?name=model&lead=${view.lead}${caseParam}`}
+            fitKey={fit}
+          />
           <ForecastMap
             title={view.compare === "persistence" ? text.persistence : text.flow}
-            accent={view.compare === "persistence" ? "#b45309" : "#1d4ed8"}
+            accent={view.compare === "persistence" ? "#d97706" : "#2563eb"}
+            headerClass="panel-header-baseline"
+            tag={view.compare === "persistence" ? "PERSISTENCE 0H" : "OPTICAL FLOW ADV"}
+            tagClass={view.compare === "persistence" ? "tag-persist" : "tag-flow"}
             imageUrl={`/api/panel?name=${view.compare === "persistence" ? "persist" : "flow"}&lead=${view.lead}${caseParam}`}
             fitKey={fit}
           />
         </div>
       ) : null}
       {meta ? (
-        <section className="card">
-          <div className="toolbar">
-            {(["all", "initiation", "decay"] as SliceName[]).map((name) => (
-              <button key={name} type="button" className={slice === name ? "on" : ""} onClick={() => setSlice(name)}>
-                {name === "all" ? text.sliceAll : name === "initiation" ? text.sliceInit : text.sliceDecay}
-              </button>
-            ))}
-            <div className="row" style={{ marginLeft: "auto" }}>
+        <section className="card chart-card">
+          <div className="chart-header">
+            <div className="chart-title-group">
+              <strong>Critical Success Index (CSI) Evaluation</strong>
+              <span className="muted">
+                Zero-to-two-hour forecast accuracy against ground truth convective cells (0.05° grid)
+              </span>
+            </div>
+            <div className="row">
+              {(["all", "initiation", "decay"] as SliceName[]).map((name) => (
+                <button key={name} type="button" className={slice === name ? "on" : ""} onClick={() => setSlice(name)}>
+                  {name === "all" ? text.sliceAll : name === "initiation" ? text.sliceInit : text.sliceDecay}
+                </button>
+              ))}
               <button
                 type="button"
                 className={scoreSource === "test" ? "on" : ""}
@@ -488,35 +562,87 @@ export function Player({
                 Case Verification (2024-04-18: n/a)
               </button>
             </div>
-            <span className="muted">
-              {scoreSource === "test" ? `${text.testDay} ${meta.testDate}` : `${text.demoDay} 2024-04-18`}. {text.threshold} {meta.threshold.toFixed(2)}. {text.model} CSI {leadRow && (leadRow.hits + leadRow.misses + leadRow.falseAlarms > 0) ? formatScore(leadRow.csi, leadRow.hits, leadRow.misses, leadRow.falseAlarms) : "n/a"}. {text.flow}{" "}
-              {flowRow && (flowRow.hits + flowRow.misses + flowRow.falseAlarms > 0) ? formatScore(flowRow.csi, flowRow.hits, flowRow.misses, flowRow.falseAlarms) : "n/a"}. {text.persistence}{" "}
-              {persistRow && (persistRow.hits + persistRow.misses + persistRow.falseAlarms > 0) ? formatScore(persistRow.csi, persistRow.hits, persistRow.misses, persistRow.falseAlarms) : "n/a"}.
-            </span>
           </div>
+          <div className="kpi-row">
+            <div className="kpi-card kpi-model">
+              <span className="kpi-label">{text.model} (+{view.lead} min)</span>
+              <span className="kpi-value">
+                {leadRow && (leadRow.hits + leadRow.misses + leadRow.falseAlarms > 0)
+                  ? formatScore(leadRow.csi, leadRow.hits, leadRow.misses, leadRow.falseAlarms)
+                  : "n/a"}
+              </span>
+              <span className="kpi-sub">
+                Hits: {leadRow?.hits ?? 0} | Miss: {leadRow?.misses ?? 0} | FA: {leadRow?.falseAlarms ?? 0}
+              </span>
+            </div>
+            <div className="kpi-card kpi-flow">
+              <span className="kpi-label">{text.flow} (+{view.lead} min)</span>
+              <span className="kpi-value">
+                {flowRow && (flowRow.hits + flowRow.misses + flowRow.falseAlarms > 0)
+                  ? formatScore(flowRow.csi, flowRow.hits, flowRow.misses, flowRow.falseAlarms)
+                  : "n/a"}
+              </span>
+              <span className="kpi-sub">
+                Hits: {flowRow?.hits ?? 0} | Miss: {flowRow?.misses ?? 0} | FA: {flowRow?.falseAlarms ?? 0}
+              </span>
+            </div>
+            <div className="kpi-card kpi-persist">
+              <span className="kpi-label">{text.persistence} (+{view.lead} min)</span>
+              <span className="kpi-value">
+                {persistRow && (persistRow.hits + persistRow.misses + persistRow.falseAlarms > 0)
+                  ? formatScore(persistRow.csi, persistRow.hits, persistRow.misses, persistRow.falseAlarms)
+                  : "n/a"}
+              </span>
+              <span className="kpi-sub">
+                Hits: {persistRow?.hits ?? 0} | Miss: {persistRow?.misses ?? 0} | FA: {persistRow?.falseAlarms ?? 0}
+              </span>
+            </div>
+          </div>
+          <span className="muted">
+            {scoreSource === "test" ? `${text.testDay} ${meta.testDate}` : `${text.demoDay} 2024-04-18`}. {text.threshold} {meta.threshold.toFixed(2)}. {text.model} CSI {leadRow && (leadRow.hits + leadRow.misses + leadRow.falseAlarms > 0) ? formatScore(leadRow.csi, leadRow.hits, leadRow.misses, leadRow.falseAlarms) : "n/a"}. {text.flow}{" "}
+            {flowRow && (flowRow.hits + flowRow.misses + flowRow.falseAlarms > 0) ? formatScore(flowRow.csi, flowRow.hits, flowRow.misses, flowRow.falseAlarms) : "n/a"}. {text.persistence}{" "}
+            {persistRow && (persistRow.hits + persistRow.misses + persistRow.falseAlarms > 0) ? formatScore(persistRow.csi, persistRow.hits, persistRow.misses, persistRow.falseAlarms) : "n/a"}.
+          </span>
           {activeScores ? <CsiChart scores={activeScores} slice={slice} /> : null}
         </section>
       ) : null}
       <div className="layout">
         <section className="card stack">
-          <strong>{text.districts}</strong>
+          <div className="districts-header">
+            <strong>{text.districts}</strong>
+            <span className="badge badge-lead">+{view.lead} min forecast</span>
+          </div>
           <div className="districts">
-            {districts.map((item) => (
-              <button key={item.id} type="button" className={view.district === item.id ? "on" : ""} onClick={() => commit({ ...view, district: item.id })}>
-                {view.language === "hi" ? item.nameHi : item.name}
-                <small>
-                  {item.max.toFixed(2)} / {item.areaKm2.toFixed(0)} km2
-                </small>
-              </button>
-            ))}
+            {districts.map((item) => {
+              const riskClass = item.max >= 0.5 ? "risk-high" : item.max >= 0.2 ? "risk-med" : "risk-low";
+              const probClass = item.max >= 0.5 ? "prob-high" : item.max >= 0.2 ? "prob-med" : "prob-low";
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`district-card ${riskClass} ${view.district === item.id ? "active" : ""}`}
+                  onClick={() => commit({ ...view, district: item.id })}
+                >
+                  <span className="district-name">{view.language === "hi" ? item.nameHi : item.name}</span>
+                  <div className="district-meta">
+                    <span className={`district-prob ${probClass}`}>{(item.max * 100).toFixed(0)}% risk</span>
+                    <span>{item.areaKm2.toFixed(0)} km2</span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
           {meta ? <p className="muted">{meta.elevationNote}</p> : null}
         </section>
         <section className="chat">
-          <strong>{text.chat}</strong>
+          <div className="chat-header">
+            <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#6366f1" }} />
+            <strong>{text.chat}</strong>
+            <span className="badge badge-lead" style={{ marginLeft: "auto" }}>NVIDIA AI</span>
+          </div>
           <div className="messages">
             {lines.map((line) => (
-              <div key={line.id} className={line.role === "user" ? "bubble user" : "bubble"}>
+              <div key={line.id} className={line.role === "user" ? "bubble user" : "bubble bubble-ai"}>
                 <div>{line.text}</div>
                 {line.fallback ? <small className="muted">{text.templateNote}</small> : null}
                 {line.sources?.length ? (
@@ -531,10 +657,10 @@ export function Player({
               </div>
             ))}
           </div>
-          <div className="row">
+          <div className="chat-suggestions">
             {text.suggestions.map((suggestion) => (
-              <button key={suggestion} type="button" onClick={() => send(suggestion, false).catch(() => undefined)}>
-                {suggestion}
+              <button key={suggestion} type="button" className="suggestion-chip" onClick={() => send(suggestion, false).catch(() => undefined)}>
+                💡 {suggestion}
               </button>
             ))}
           </div>

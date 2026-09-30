@@ -26,6 +26,11 @@ export function ScoresView({ meta }: { meta: CaseMeta | null }) {
         <span>
           {text.testDay} {meta.testDate}. {text.demoDay} {meta.demoDate} {meta.analysisHhmm} UTC. {text.threshold} {meta.threshold.toFixed(2)}. {meta.label}
         </span>
+        <div className="badge-row">
+          <span className="badge badge-convective">⚡ Test Date: {meta.testDate}</span>
+          <span className="badge badge-lead">Threshold: {meta.threshold.toFixed(2)}</span>
+          <span className="badge badge-grid">MLP: {meta.model.input}-{meta.model.hidden}-{meta.model.output}</span>
+        </div>
       </section>
       <div className="toolbar">
         {(["all", "initiation", "decay"] as SliceName[]).map((name) => (

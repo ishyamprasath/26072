@@ -7,9 +7,9 @@ import { copyOf } from "@/lib/copy";
 import { useLanguage } from "./language";
 
 const COLOR: Record<MethodName, string> = {
-  model: "#0f6e56",
-  optical_flow: "#1d4e89",
-  persistence: "#8a5a00",
+  model: "#059669",
+  optical_flow: "#2563eb",
+  persistence: "#d97706",
 };
 
 const METHODS: MethodName[] = ["model", "optical_flow", "persistence"];
@@ -34,14 +34,15 @@ export function CsiChart({ scores, slice }: { scores: Record<MethodName, ScoreBl
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="CSI by lead">
         {[0, 0.25, 0.5, 0.75, 1].map((tick) => (
           <g key={tick}>
-            <line x1={padL} x2={width - padR} y1={y(tick)} y2={y(tick)} stroke="#d5dde5" />
-            <text x={0} y={y(tick) + 4} fill="#5c6b7a" fontSize="11">
+            <line x1={padL} x2={width - padR} y1={y(tick)} y2={y(tick)} stroke="#e2e8f0" strokeDasharray={tick === 0.5 ? "4 4" : undefined} />
+            <text x={0} y={y(tick) + 4} fill="#64748b" fontSize="11" fontWeight="600">
               {tick.toFixed(2)}
             </text>
           </g>
         ))}
         {METHODS.map((method) => {
           const segments: string[] = [];
+          const validPoints: { x: number; y: number }[] = [];
           let current: string[] = [];
           scores[method][slice].forEach((row, index) => {
             const empty = row.hits + row.misses + row.falseAlarms === 0;
@@ -50,23 +51,33 @@ export function CsiChart({ scores, slice }: { scores: Record<MethodName, ScoreBl
               current = [];
               return;
             }
-            current.push(`${x(index)},${y(row.csi)}`);
+            const px = x(index);
+            const py = y(row.csi);
+            current.push(`${px},${py}`);
+            validPoints.push({ x: px, y: py });
           });
           if (current.length) segments.push(current.join(" "));
-          return segments.map((points) => (
-            <polyline key={`${method}-${points}`} fill="none" stroke={COLOR[method]} strokeWidth="2.5" points={points} />
-          ));
+          return (
+            <g key={method}>
+              {segments.map((points) => (
+                <polyline key={`${method}-${points}`} fill="none" stroke={COLOR[method]} strokeWidth="3" points={points} strokeLinecap="round" strokeLinejoin="round" />
+              ))}
+              {validPoints.map((pt, idx) => (
+                <circle key={idx} cx={pt.x} cy={pt.y} r="3.5" fill={COLOR[method]} stroke="#ffffff" strokeWidth="1.5" />
+              ))}
+            </g>
+          );
         })}
         {rows.map((row, index) => (
-          <text key={row.lead} x={x(index)} y={height - 8} textAnchor="middle" fill="#5c6b7a" fontSize="11">
-            {row.lead}
+          <text key={row.lead} x={x(index)} y={height - 8} textAnchor="middle" fill="#475569" fontSize="11" fontWeight="600">
+            +{row.lead}
           </text>
         ))}
       </svg>
       <div className="legend">
         {METHODS.map((method) => (
-          <span key={method}>
-            <i className="swatch" style={{ background: COLOR[method] }} />
+          <span key={method} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 600 }}>
+            <i className="swatch" style={{ background: COLOR[method], width: 14, height: 14, borderRadius: 4 }} />
             {labels[method]}
           </span>
         ))}
